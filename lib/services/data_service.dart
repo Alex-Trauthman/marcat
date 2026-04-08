@@ -1,7 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import '../models/item.dart';
-import '../data/local_service.dart';
 
 class DataService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -15,16 +14,14 @@ class DataService {
           .order('created_at', ascending: false);
 
       if ((response as List).isEmpty) {
-        print('Nenhum dado retornado do Supabase. Usando mock local.');
-        return LocalService.mockItems;
+        return []; // Retorna lista vazia se não houver itens no banco
       }
 
       final List itemsData = response;
       return itemsData.map((item) => Item.fromJson(item)).toList();
     } catch (e) {
-      print('Erro ao buscar itens do Supabase: $e. Usando mock local.');
-      // Retorna os dados mockados caso a requisição falhe ou não esteja configurada
-      return LocalService.mockItems;
+      print('Erro ao buscar itens do Supabase: $e');
+      return []; // Retorna vazio em caso de erro real
     }
   }
 

@@ -1,6 +1,13 @@
 # Mar Cat
 
+Projeto acadêmico desenvolvido para a disciplina de Desenvolvimento Mobile 2 da Universidade Estadual do Tocantins (UNITINS).
+
 Um marketplace moderno Consumer-to-Consumer (C2C) para venda e doação de itens usados, inspirado na simplicidade e eficiência da OLX. Desenvolvido com Flutter e integrado ao Supabase para uma experiência robusta e escalável.
+
+## Autores
+
+- Alex Andrade Trauthman
+- Júlio César Arraes Vieira
 
 ## Funcionalidades
 

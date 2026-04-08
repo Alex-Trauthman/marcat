@@ -10,7 +10,8 @@ class ItemCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // GestureDetector captura cliques na área do card e chama a função onTap repassada pelos construtores
+    final bool isNetworkImage = item.imageUrl.startsWith('http');
+
     return GestureDetector(
       onTap: onTap,
       child: Card(
@@ -20,41 +21,49 @@ class ItemCardWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Utiliza o espaço disponível para a imagem
             Expanded(
-              // Arredonda apenas os cantos superiores da imagem para acompanhar o formato do Card
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Image.asset(
-                  item.imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                ),
+                child: isNetworkImage
+                    ? Image.network(
+                        item.imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                      )
+                    : Image.asset(
+                        item.imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                      ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(left: 8.0, top: 8.0, right: 8.0),
-              child: Text(
-                item.title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.isFree ? 'Grátis' : 'R\$ ${item.price.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: item.isFree ? Colors.green[700] : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-              child: Text(
-                item.isFree ? 'Grátis' : 'R\$ ${item.price.toStringAsFixed(2)}',
-                style: TextStyle(
-                  color: item.isFree ? Colors.green[700] : Colors.black87,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
           ],
         ),
       ),

@@ -24,15 +24,23 @@ class DetailsScreen extends StatelessWidget {
             // Animação Hero: cria uma transição suave da imagem do card direto para esta tela
             Hero(
               tag: 'image_${item.id}',
-              child: Image.asset(
-                item.imageUrl,
-                width: double.infinity,
-                height: 320,
-                fit: BoxFit.cover, // Preenche todo o espaço sem distorcer as proporções da imagem
-                // Exibe um ícone caso ocorra falha ao carregar a imagem
-                errorBuilder: (context, error, stackTrace) =>
-                    const SizedBox(height: 320, child: Center(child: Icon(Icons.broken_image, size: 64))),
-              ),
+              child: item.imageUrl.startsWith('http')
+                  ? Image.network(
+                      item.imageUrl,
+                      width: double.infinity,
+                      height: 320,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const SizedBox(height: 320, child: Center(child: Icon(Icons.broken_image, size: 64))),
+                    )
+                  : Image.asset(
+                      item.imageUrl,
+                      width: double.infinity,
+                      height: 320,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const SizedBox(height: 320, child: Center(child: Icon(Icons.broken_image, size: 64))),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.all(24.0),

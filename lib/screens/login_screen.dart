@@ -19,31 +19,37 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   void _handleLogin() async {
-    // Se o formulário não for válido (ex: e-mail sem @), interrompe a função
     if (!_formKey.currentState!.validate()) return;
 
-    // Reconstrói a tela mostrando o indicador de carregamento
     setState(() => _isLoading = true);
-    final success = await _authService.login(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
-    setState(() => _isLoading = false);
-
-    if (success && mounted) {
-      // Navega para a HomeScreen e destrói todo o histórico anterior para o usuário não voltar ao Login usando a seta de "voltar"
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
+    try {
+      await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
       );
-    } else if (mounted) {
-      // Exibe uma notificação rápida (SnackBar) na parte inferior da tela caso o login falhe
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Credenciais inválidas ou usuário não encontrado.')),
-      );
+      
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = e.toString().replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro: $errorMessage'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -107,8 +113,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                             filled: true,
                             fillColor: Colors.grey[50],
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            ),
                           ),
-                          obscureText: true,
+                          obscureText: _obscurePassword,
                           validator: (value) {
                             if (value == null || value.isEmpty) return 'A senha é obrigatória';
                             if (value.length < 8) return 'A senha deve ter no mínimo 8 caracteres';

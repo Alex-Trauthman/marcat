@@ -14,12 +14,13 @@ class CarouselWidget extends StatelessWidget {
 
     return SizedBox(
       height: 220,
-      // Constrói páginas horizontais que o usuário pode deslizar, mostrando 85% de cada imagem por vez
       child: PageView.builder(
         controller: PageController(viewportFraction: 0.85),
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
+          final bool isNetworkImage = item.imageUrl.startsWith('http');
+
           return GestureDetector(
             onTap: () => onItemTap(item),
             child: Container(
@@ -27,7 +28,9 @@ class CarouselWidget extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 image: DecorationImage(
-                  image: AssetImage(item.imageUrl),
+                  image: (isNetworkImage 
+                    ? NetworkImage(item.imageUrl) 
+                    : AssetImage(item.imageUrl)) as ImageProvider,
                   fit: BoxFit.cover,
                 ),
                 boxShadow: const [
@@ -37,7 +40,6 @@ class CarouselWidget extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  // Gradiente escuro na parte inferior para garantir que o texto branco seja sempre legível
                   gradient: LinearGradient(
                     colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
                     begin: Alignment.topCenter,

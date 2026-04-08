@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
@@ -8,6 +10,15 @@ void main() async {
   // Garante que a ligação com o motor do Flutter esteja pronta antes de chamar código assíncrono
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Carrega as variáveis de ambiente do arquivo .env
+  await dotenv.load(fileName: ".env");
+
+  // Inicializa o Supabase usando as chaves do arquivo .env
+  await Supabase.initialize(
+    url: dotenv.get('SUPABASE_URL', fallback: 'YOUR_SUPABASE_URL'),
+    anonKey: dotenv.get('SUPABASE_ANON_KEY', fallback: 'YOUR_SUPABASE_ANON_KEY'),
+  );
+
   // Instancia o serviço de autenticação para verificar se o usuário já tem uma sessão salva
   final authService = AuthService();
   final isLoggedIn = await authService.isLoggedIn();

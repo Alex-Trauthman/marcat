@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import '../models/item.dart';
@@ -20,7 +21,7 @@ class DataService {
       final List itemsData = response;
       return itemsData.map((item) => Item.fromJson(item)).toList();
     } catch (e) {
-      print('Erro ao buscar itens do Supabase: $e');
+      debugPrint('Erro ao buscar itens do Supabase: $e');
       return []; // Retorna vazio em caso de erro real
     }
   }
@@ -65,8 +66,30 @@ class DataService {
         'seller_id': user.id,
       });
     } catch (e) {
-      print('Erro detalhado no DataService: $e');
+      debugPrint('Erro detalhado no DataService: $e');
       rethrow; // Repassa o erro para a UI tratar
+    }
+  }
+
+  /// Faz upload do avatar no bucket 'avatars' e retorna a URL pública
+  Future<String> uploadAvatar(File imageFile) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('Usuário não autenticado.');
+  
+    final fileExt = imageFile.path.split('.').last;
+    // Usa o userId como nome do arquivo → sobrescreve o anterior automaticamente
+    final filePath = '${user.id}/avatar.$fileExt';
+  
+    try {
+      await _supabase.storage
+          .from('avatars')
+          .upload(filePath, imageFile, fileOptions: const FileOptions(upsert: true));
+  
+      // Adiciona cache-buster para forçar reload da imagem
+      final publicUrl = _supabase.storage.from('avatars').getPublicUrl(filePath);
+      return '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+    } catch (e) {
+      throw Exception('Erro ao subir foto de perfil: $e');
     }
   }
 }

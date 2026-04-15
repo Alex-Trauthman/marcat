@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -52,7 +53,7 @@ class AuthService {
       await _supabase.auth.signOut();
       await _storage.delete(key: _nameKey);
     } catch (e) {
-      print('Erro no logout Supabase: $e');
+      debugPrint('Erro no logout Supabase: $e');
     }
   }
 
@@ -64,5 +65,30 @@ class AuthService {
 
   Future<String?> getUserName() async {
     return await _storage.read(key: _nameKey);
+  }
+
+  // Getter conveniente — evita ter que chamar Supabase.instance.client em todo lugar
+  User? get currentUser => _supabase.auth.currentUser;
+  
+  /// Atualiza nome, telefone e avatar no user_metadata do Supabase Auth
+  Future<void> updateProfile({
+    required String fullName,
+    String? phone,
+    String? avatarUrl,
+  }) async {
+    try {
+      final data = <String, dynamic>{'full_name': fullName};
+      if (phone != null) data['phone'] = phone;
+      if (avatarUrl != null) data['avatar_url'] = avatarUrl;
+  
+      await _supabase.auth.updateUser(UserAttributes(data: data));
+  
+      // Mantém o nome em cache local para uso offline
+      await _storage.write(key: _nameKey, value: fullName);
+    } on AuthException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Erro ao atualizar perfil: $e');
+    }
   }
 }

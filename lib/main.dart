@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'controllers/home_controller.dart';
+import 'controllers/auth_controller.dart';
+import 'controllers/item_controller.dart';
+import 'controllers/profile_controller.dart';
 
 // Função principal que inicializa o aplicativo Flutter
 void main() async {
@@ -24,7 +29,17 @@ void main() async {
   final isLoggedIn = await authService.isLoggedIn();
 
   // Inicia o widget raiz do aplicativo, passando o estado de login
-  runApp(MarCatApp(isLoggedIn: isLoggedIn));
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthController()),
+        ChangeNotifierProvider(create: (_) => HomeController()),
+        ChangeNotifierProvider(create: (_) => ItemController()),
+        ChangeNotifierProvider(create: (_) => ProfileController()),
+      ],
+      child: MarCatApp(isLoggedIn: isLoggedIn),
+    ),
+  );
 }
 
 class MarCatApp extends StatelessWidget {

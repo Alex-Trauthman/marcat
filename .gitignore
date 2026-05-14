@@ -45,5 +45,6 @@ app.*.map.json
 # Documentation and config
 *.md
 !README.md
+!ROADMAP.md
 .agents/
 skills-lock.json

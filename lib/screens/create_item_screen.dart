@@ -2,8 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/data_service.dart';
-import '../services/auth_service.dart';
+import 'package:provider/provider.dart';
+import '../controllers/item_controller.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
@@ -29,8 +29,6 @@ class CreateItemScreen extends StatefulWidget {
 
 class _CreateItemScreenState extends State<CreateItemScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _dataService = DataService();
-  final _authService = AuthService();
   final _picker = ImagePicker();
 
   final _titleController = TextEditingController();
@@ -48,23 +46,7 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
   ];
 
   bool _isFree = false;
-  bool _isLoading = false;
   File? _imageFile;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserContact();
-  }
-
-  Future<void> _loadUserContact() async {
-    // Tenta carregar o telefone ou email padrão do usuário para facilitar
-    final userName = await _authService.getUserName();
-    if (userName != null && mounted) {
-      // Como não temos telefone no auth por padrão, podemos deixar em branco
-      // ou preencher com um placeholder baseado no usuário.
-    }
-  }
 
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -85,44 +67,40 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    final itemController = context.read<ItemController>();
+    final double price = _isFree ? 0.0 : (double.tryParse(_priceController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0.0);
 
-    try {
-      final double price = _isFree ? 0.0 : (double.tryParse(_priceController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0.0);
+    final success = await itemController.createItem(
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      price: price,
+      condition: _selectedCondition,
+      contactInfo: _contactController.text.trim(),
+      imageFile: _imageFile,
+    );
 
-      await _dataService.createItem(
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-        price: price,
-        condition: _selectedCondition,
-        contactInfo: _contactController.text.trim(),
-        imageFile: _imageFile,
-      );
-
-      if (mounted) {
+    if (mounted) {
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Anúncio publicado com sucesso!'), backgroundColor: Colors.green),
         );
         Navigator.pop(context, true); 
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text('Erro: ${itemController.error}'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 10), // Mais tempo para ler o erro
+            duration: const Duration(seconds: 10),
             action: SnackBarAction(label: 'OK', textColor: Colors.white, onPressed: () {}),
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = context.select<ItemController, bool>((ctrl) => ctrl.isLoading);
     return Scaffold(
       backgroundColor: const Color(0xFFFFF9DB),
       appBar: AppBar(
@@ -283,14 +261,14 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
                 const SizedBox(height: 24),
 
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _submitForm,
+                  onPressed: isLoading ? null : _submitForm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black87,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: _isLoading
+                  child: isLoading
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Text('Publicar Anúncio', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),

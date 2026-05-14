@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'package:provider/provider.dart';
+import '../controllers/auth_controller.dart';
 import 'home_screen.dart';
 
-/// Tela de Cadastro: Similar à de Login, mas armazena um novo usuário no SharedPreferences
+/// Tela de Cadastro: Refatorada para o padrão MVCS com Provider
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -16,47 +17,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _authService = AuthService();
-  bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
   void _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-    try {
-      await _authService.register(
-        _nameController.text.trim(),
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
-      
-      if (mounted) {
+    final authController = context.read<AuthController>();
+    
+    final success = await authController.register(
+      _nameController.text.trim(),
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+    
+    if (mounted) {
+      if (success) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
           (route) => false,
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        String errorMessage = e.toString().replaceAll('Exception: ', '');
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro: $errorMessage'),
+            content: Text('Erro: ${authController.error}'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Scaffold é a base da tela visual, que provê cor de fundo, barra superior (AppBar) etc.
+    final isLoading = context.select<AuthController, bool>((ctrl) => ctrl.isLoading);
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF9DB),
       appBar: AppBar(
@@ -167,14 +163,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _handleRegister,
+                      onPressed: isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black87,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: _isLoading
+                      child: isLoading
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                           : const Text('Cadastrar', style: TextStyle(fontSize: 16)),
                     ),

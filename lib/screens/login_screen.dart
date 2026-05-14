@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'package:provider/provider.dart';
+import '../controllers/auth_controller.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 
-/// Tela de Login: Usa StatefulWidget porque a tela precisa se reconstruir para mostrar o "loading"
+/// Tela de Login: Refatorada para usar o padrão MVCS com Provider
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -17,44 +18,41 @@ class _LoginScreenState extends State<LoginScreen> {
   // Controladores que capturam o texto digitado nos campos
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authService = AuthService();
-  bool _isLoading = false;
   bool _obscurePassword = true;
 
   void _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-    try {
-      await _authService.login(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
-      
-      if (mounted) {
+    final authController = context.read<AuthController>();
+    
+    final success = await authController.login(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+    
+    if (mounted) {
+      if (success) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
           (route) => false,
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        String errorMessage = e.toString().replaceAll('Exception: ', '');
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro: $errorMessage'),
+            content: Text('Erro: ${authController.error}'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Escuta apenas as mudanças necessárias (ex: isLoading)
+    final isLoading = context.select<AuthController, bool>((ctrl) => ctrl.isLoading);
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF9DB),
       body: SafeArea(
@@ -126,23 +124,23 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                         const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black87,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ElevatedButton(
+                          onPressed: isLoading ? null : _handleLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black87,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: isLoading
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Text('Entrar', style: TextStyle(fontSize: 16)),
                         ),
-                        child: _isLoading
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text('Entrar', style: TextStyle(fontSize: 16)),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
                 TextButton(
                   onPressed: () {
                     Navigator.push(

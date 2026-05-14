@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/item.dart';
 import '../widgets/carousel_widget.dart';
 import '../widgets/item_card.dart';
-import '../services/auth_service.dart';
-import '../services/data_service.dart';
+import '../controllers/home_controller.dart';
+import '../controllers/auth_controller.dart';
 import 'details_screen.dart';
 import 'login_screen.dart';
 import 'create_item_screen.dart';
 import 'edit_profile_screen.dart';
 
-/// Tela principal do aplicativo (Home), onde os itens são exibidos no carrossel e no grid
+/// Tela principal do aplicativo (Home), refatorada para o padrão MVCS com Provider
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,28 +19,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _dataService = DataService();
-  final _authService = AuthService();
-  late Future<List<Item>> _itemsFuture;
   int _selectedIndex = 0;
-
-  // Cache local do avatar/nome para não chamar o Supabase a cada rebuild
-  String? _avatarUrl;
-  String? _userName;
 
   @override
   void initState() {
     super.initState();
-    _itemsFuture = _dataService.fetchItems();
-    _loadUserInfo();
-  }
-
-  void _loadUserInfo() {
-    final user = _authService.currentUser;
-    if (user == null) return;
-    setState(() {
-      _avatarUrl = user.userMetadata?['avatar_url'];
-      _userName = user.userMetadata?['full_name'] ?? user.email?.split('@')[0];
+    // Inicia o carregamento dos itens ao abrir a tela
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<HomeController>().fetchItems();
     });
   }
 
@@ -48,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _logout(BuildContext context) async {
-    await _authService.logout();
+    await context.read<AuthController>().logout();
     if (context.mounted) {
       Navigator.pushReplacement(
         context,
@@ -57,22 +44,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _refreshItems() async {
-    setState(() {
-      _itemsFuture = _dataService.fetchItems();
-    });
-  }
-
   Future<void> _goToEditProfile() async {
     final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const EditProfileScreen()),
     );
-    // Se o usuário salvou alguma coisa, recarrega o avatar/nome
-    if (updated == true) _loadUserInfo();
+    // Se o usuário salvou alguma coisa, notifica o AuthController para atualizar a UI
+    if (updated == true && mounted) {
+      context.read<AuthController>().updateUI();
+    }
   }
 
   void _showProfileMenu(BuildContext context) {
+    final authController = context.read<AuthController>();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -84,7 +69,6 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle visual
               Container(
                 margin: const EdgeInsets.only(top: 12, bottom: 8),
                 width: 40,
@@ -94,20 +78,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-
-              // Cabeçalho com avatar e nome
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: Row(
                   children: [
-                    _buildAvatarWidget(radius: 28),
+                    _buildAvatarWidget(context, radius: 28),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _userName ?? 'Usuário',
+                            authController.userName ?? 'Usuário',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -115,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           Text(
-                            _authService.currentUser?.email ?? '',
+                            authController.currentUser?.email ?? '',
                             style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -125,29 +107,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-
               const Divider(height: 1),
-
-              // Opção: Editar Perfil
               ListTile(
                 leading: const Icon(Icons.edit_outlined, color: Colors.black87),
                 title: const Text('Editar Perfil'),
                 onTap: () {
-                  Navigator.pop(context); // fecha o bottom sheet
+                  Navigator.pop(context);
                   _goToEditProfile();
                 },
               ),
-
-              // Opção: Meus Anúncios (placeholder)
               ListTile(
                 leading: const Icon(Icons.storefront_outlined, color: Colors.black87),
                 title: const Text('Meus Anúncios'),
                 onTap: () => Navigator.pop(context),
               ),
-
               const Divider(height: 1),
-
-              // Opção: Sair
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.red),
                 title: const Text('Sair', style: TextStyle(color: Colors.red)),
@@ -156,7 +130,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   _logout(context);
                 },
               ),
-
               const SizedBox(height: 8),
             ],
           ),
@@ -165,15 +138,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Avatar reutilizável — mostra foto de rede, inicial do nome, ou ícone genérico
-  Widget _buildAvatarWidget({double radius = 18}) {
-    final hasAvatar = _avatarUrl != null && _avatarUrl!.isNotEmpty;
-    final initial = _userName?.isNotEmpty == true ? _userName![0].toUpperCase() : null;
+  Widget _buildAvatarWidget(BuildContext context, {double radius = 18}) {
+    final authController = context.watch<AuthController>();
+    final avatarUrl = authController.avatarUrl;
+    final userName = authController.userName;
+
+    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+    final initial = userName?.isNotEmpty == true ? userName![0].toUpperCase() : null;
 
     return CircleAvatar(
       radius: radius,
       backgroundColor: Colors.grey.shade300,
-      backgroundImage: hasAvatar ? NetworkImage(_avatarUrl!) : null,
+      backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
       child: !hasAvatar
           ? Text(
               initial ?? '',
@@ -189,6 +165,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final homeController = context.watch<HomeController>();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -205,12 +183,11 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         foregroundColor: Colors.black87,
         actions: [
-          // Avatar clicável no canto direito
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
               onTap: () => _showProfileMenu(context),
-              child: _buildAvatarWidget(radius: 18),
+              child: _buildAvatarWidget(context, radius: 18),
             ),
           ),
         ],
@@ -230,7 +207,9 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               MaterialPageRoute(builder: (context) => const CreateItemScreen()),
             );
-            if (result == true) _refreshItems();
+            if (result == true && mounted) {
+              context.read<HomeController>().refreshItems();
+            }
           } else {
             _onItemTapped(index);
           }
@@ -250,80 +229,91 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'Menu'),
         ],
       ),
-      body: FutureBuilder<List<Item>>(
-        future: _itemsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.black87));
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Erro ao carregar itens. Tente novamente mais tarde.'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return RefreshIndicator(
-              onRefresh: _refreshItems,
-              child: const SingleChildScrollView(
-                physics: AlwaysScrollableScrollPhysics(),
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 100),
-                    child: Text('Nenhum item disponível no momento.'),
-                  ),
-                ),
-              ),
-            );
-          }
+      body: _buildBody(homeController),
+    );
+  }
 
-          final items = snapshot.data!;
-          final carouselItems = items.take(3).toList();
+  Widget _buildBody(HomeController controller) {
+    if (controller.isLoading) {
+      return const Center(child: CircularProgressIndicator(color: Colors.black87));
+    }
 
-          return RefreshIndicator(
-            onRefresh: _refreshItems,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('Destaques'),
-                  CarouselWidget(
-                    items: carouselItems,
-                    onItemTap: (item) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => DetailsScreen(item: item)),
-                      );
-                    },
-                  ),
-                  _buildSectionHeader('Mais Itens'),
-                  GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.72,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      return ItemCardWidget(
-                        item: items[index],
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DetailsScreen(item: items[index]),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
+    if (controller.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Erro ao carregar itens.'),
+            TextButton(
+              onPressed: controller.refreshItems,
+              child: const Text('Tentar novamente'),
             ),
-          );
-        },
+          ],
+        ),
+      );
+    }
+
+    if (controller.items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: controller.refreshItems,
+        child: const SingleChildScrollView(
+          physics: AlwaysScrollableScrollPhysics(),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.only(top: 100),
+              child: Text('Nenhum item disponível no momento.'),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: controller.refreshItems,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('Destaques'),
+            CarouselWidget(
+              items: controller.carouselItems,
+              onItemTap: (item) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => DetailsScreen(item: item)),
+                );
+              },
+            ),
+            _buildSectionHeader('Mais Itens'),
+            GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.72,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: controller.items.length,
+              itemBuilder: (context, index) {
+                return ItemCardWidget(
+                  item: controller.items[index],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DetailsScreen(item: controller.items[index]),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/item.dart';
+import '../controllers/favorite_controller.dart';
+import '../controllers/cart_controller.dart';
+import '../controllers/auth_controller.dart';
 
 /// Tela de detalhes que exibe nome, imagem grande, preço, descrição e contato de um único item
 class DetailsScreen extends StatelessWidget {
@@ -16,6 +20,20 @@ class DetailsScreen extends StatelessWidget {
         backgroundColor: const Color(0xFFFFF9DB),
         foregroundColor: Colors.black87,
         elevation: 0,
+        actions: [
+          Consumer<FavoriteController>(
+            builder: (context, favoriteController, child) {
+              final isFav = favoriteController.isFavorite(item.id);
+              return IconButton(
+                icon: Icon(
+                  isFav ? Icons.favorite : Icons.favorite_border,
+                  color: isFav ? Colors.red : Colors.black87,
+                ),
+                onPressed: () => favoriteController.toggleFavorite(item.id),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -97,6 +115,90 @@ class DetailsScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, -4)),
+          ],
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Preço', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.isFree ? 'Grátis' : 'R\$ ${item.price.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    final currentUser = context.watch<AuthController>().userProfile;
+                    final isOwnItem = currentUser != null && item.sellerId == currentUser.id;
+
+                    if (isOwnItem) {
+                      return ElevatedButton.icon(
+                        onPressed: null,
+                        icon: const Icon(Icons.person),
+                        label: const Text('Seu Anúncio'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      );
+                    }
+
+                    return Consumer<CartController>(
+                      builder: (context, cartController, child) {
+                        final inCart = cartController.isInCart(item.id);
+                        return ElevatedButton.icon(
+                          onPressed: () async {
+                            if (inCart) {
+                              await cartController.removeFromCart(item.id);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Item removido do carrinho!'), backgroundColor: Colors.orange),
+                                );
+                              }
+                            } else {
+                              await cartController.addToCart(item);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Item adicionado ao carrinho!'), backgroundColor: Colors.green),
+                                );
+                              }
+                            }
+                          },
+                          icon: Icon(inCart ? Icons.remove_shopping_cart : Icons.add_shopping_cart),
+                          label: Text(
+                            inCart ? 'Remover do Carrinho' : 'Adicionar ao Carrinho',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: inCart ? Colors.red[700] : Colors.black87,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        );
+                      },
+                    );
+                  }
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

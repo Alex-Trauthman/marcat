@@ -4,8 +4,12 @@ import '../services/profile_service.dart';
 import '../services/auth_service.dart';
 
 class ProfileController extends ChangeNotifier {
-  final ProfileService _profileService = ProfileService();
-  final AuthService _authService = AuthService();
+  final ProfileService _profileService;
+  final AuthService _authService;
+
+  ProfileController({ProfileService? profileService, AuthService? authService})
+      : _profileService = profileService ?? ProfileService(),
+        _authService = authService ?? AuthService();
 
   bool _isLoading = false;
   String? _error;

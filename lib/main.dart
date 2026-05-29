@@ -9,6 +9,9 @@ import 'controllers/home_controller.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/item_controller.dart';
 import 'controllers/profile_controller.dart';
+import 'controllers/address_controller.dart';
+import 'controllers/favorite_controller.dart';
+import 'controllers/cart_controller.dart';
 
 // Função principal que inicializa o aplicativo Flutter
 void main() async {
@@ -36,6 +39,9 @@ void main() async {
         ChangeNotifierProvider(create: (_) => HomeController()),
         ChangeNotifierProvider(create: (_) => ItemController()),
         ChangeNotifierProvider(create: (_) => ProfileController()),
+        ChangeNotifierProvider(create: (_) => AddressController()),
+        ChangeNotifierProvider(create: (_) => FavoriteController()),
+        ChangeNotifierProvider(create: (_) => CartController()),
       ],
       child: MarCatApp(isLoggedIn: isLoggedIn),
     ),

@@ -6,10 +6,12 @@ class HomeController extends ChangeNotifier {
   final ItemService _itemService = ItemService();
 
   List<Item> _items = [];
+  List<Item> _userItems = [];
   bool _isLoading = false;
   String? _error;
 
   List<Item> get items => _items;
+  List<Item> get userItems => _userItems;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -32,5 +34,21 @@ class HomeController extends ChangeNotifier {
 
   Future<void> refreshItems() async {
     await fetchItems();
+  }
+
+  /// Busca os anúncios criados pelo usuário logado
+  Future<void> fetchUserItems(String userId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _userItems = await _itemService.fetchItemsBySeller(userId);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

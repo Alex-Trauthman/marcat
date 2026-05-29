@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Precisamos de acesso à câmera para tirar fotos dos produtos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Precisamos de acesso à galeria para selecionar fotos dos produtos.</string>
 </dict>
 </plist>

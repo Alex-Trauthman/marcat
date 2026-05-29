@@ -4,6 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../controllers/item_controller.dart';
+import '../controllers/address_controller.dart';
+import '../controllers/auth_controller.dart';
+import '../models/address.dart';
+import '../widgets/image_source_sheet.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
@@ -36,6 +40,39 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
   final _priceController = TextEditingController();
   final _contactController = TextEditingController();
 
+  // Campos de Endereço (ViaCEP)
+  final _cepController = TextEditingController();
+  final _streetController = TextEditingController();
+  final _neighborhoodController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _stateController = TextEditingController();
+  final _numberController = TextEditingController();
+  final _complementController = TextEditingController();
+
+  // Gerenciamento de Endereços
+  final _addressAliasController = TextEditingController();
+  Address? _selectedSavedAddress;
+  bool _isCreatingNewAddress = true;
+  bool _saveToFavorites = true;
+
+  bool _isLoadingCep = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Busca endereços existentes para o usuário
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final addressController = context.read<AddressController>();
+      await addressController.fetchAddresses();
+      if (addressController.addresses.isNotEmpty && mounted) {
+        setState(() {
+          _selectedSavedAddress = addressController.addresses.first;
+          _isCreatingNewAddress = false;
+        });
+      }
+    });
+  }
+
   String _selectedCondition = 'Usado - Em bom estado';
   final List<String> _conditions = [
     'Novo',
@@ -48,12 +85,64 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
   bool _isFree = false;
   File? _imageFile;
 
+  /// Abre o seletor para escolher entre tirar foto com a Câmera ou buscar na Galeria
   Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ImageSourceSheet(
+        onSourceSelected: (source) async {
+          final pickedFile = await _picker.pickImage(
+            source: source,
+            imageQuality: 80,
+            maxWidth: 1024,
+          );
+          if (pickedFile != null) {
+            setState(() {
+              _imageFile = File(pickedFile.path);
+            });
+          }
+        },
+      ),
+    );
+  }
+
+  /// Busca endereço baseado no CEP digitado (quando atinge 8 dígitos)
+  Future<void> _onCepChanged(String value) async {
+    final cleanCep = value.replaceAll(RegExp(r'\D'), '');
+    if (cleanCep.length == 8) {
+      setState(() => _isLoadingCep = true);
+      try {
+        final address = await context.read<ItemController>().fetchAddressFromCep(cleanCep);
+        if (address != null && mounted) {
+          setState(() {
+            _streetController.text = address['logradouro'] ?? '';
+            _neighborhoodController.text = address['bairro'] ?? '';
+            _cityController.text = address['localidade'] ?? '';
+            _stateController.text = address['uf'] ?? '';
+          });
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('CEP não encontrado ou inválido.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Erro ao buscar informações do CEP.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoadingCep = false);
+        }
+      }
     }
   }
 
@@ -67,8 +156,42 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
       return;
     }
 
+    if (!_isCreatingNewAddress && _selectedSavedAddress == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecione um endereço cadastrado.')),
+      );
+      return;
+    }
+
     final itemController = context.read<ItemController>();
     final double price = _isFree ? 0.0 : (double.tryParse(_priceController.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0.0);
+
+    final cep = _isCreatingNewAddress ? _cepController.text.trim() : _selectedSavedAddress?.cep;
+    final street = _isCreatingNewAddress ? _streetController.text.trim() : _selectedSavedAddress?.street;
+    final neighborhood = _isCreatingNewAddress ? _neighborhoodController.text.trim() : _selectedSavedAddress?.neighborhood;
+    final city = _isCreatingNewAddress ? _cityController.text.trim() : _selectedSavedAddress?.city;
+    final state = _isCreatingNewAddress ? _stateController.text.trim() : _selectedSavedAddress?.state;
+    final number = _isCreatingNewAddress ? _numberController.text.trim() : _selectedSavedAddress?.number;
+    final complement = _isCreatingNewAddress ? _complementController.text.trim() : _selectedSavedAddress?.complement;
+
+    // Se selecionou cadastrar novo e salvar em favoritos, salva primeiro
+    if (_isCreatingNewAddress && _saveToFavorites) {
+      final authController = context.read<AuthController>();
+      final user = authController.userProfile;
+      if (user != null) {
+        await context.read<AddressController>().addAddress(
+          userId: user.id,
+          alias: _addressAliasController.text.trim().isEmpty ? null : _addressAliasController.text.trim(),
+          cep: cep!,
+          street: street!,
+          number: number!,
+          complement: complement?.isEmpty == true ? null : complement,
+          neighborhood: neighborhood!,
+          city: city!,
+          state: state!,
+        );
+      }
+    }
 
     final success = await itemController.createItem(
       title: _titleController.text.trim(),
@@ -77,6 +200,13 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
       condition: _selectedCondition,
       contactInfo: _contactController.text.trim(),
       imageFile: _imageFile,
+      cep: cep,
+      street: street,
+      neighborhood: neighborhood,
+      city: city,
+      state: state,
+      number: number,
+      complement: complement,
     );
 
     if (mounted) {
@@ -136,7 +266,7 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
                             children: [
                               Icon(Icons.add_a_photo, size: 48, color: Colors.grey.shade400),
                               const SizedBox(height: 8),
-                              Text('Adicionar fotos', style: TextStyle(color: Colors.grey.shade600)),
+                              Text('Adicionar fotos (Câmera ou Galeria)', style: TextStyle(color: Colors.grey.shade600)),
                             ],
                           )
                         : null,
@@ -157,6 +287,11 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const Text(
+                        'Informações Básicas',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _titleController,
                         decoration: const InputDecoration(
@@ -255,6 +390,199 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
                         keyboardType: TextInputType.phone,
                         validator: (value) => value!.trim().isEmpty ? 'Contato é obrigatório' : null,
                       ),
+
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Localização do anúncio',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 12),
+
+                      if (context.watch<AddressController>().addresses.isNotEmpty) ...[
+                        DropdownButtonFormField<Address?>(
+                          value: _isCreatingNewAddress ? null : _selectedSavedAddress,
+                          decoration: const InputDecoration(
+                            labelText: 'Selecione o Endereço',
+                            prefixIcon: Icon(Icons.map_outlined),
+                          ),
+                          items: [
+                            ...context.read<AddressController>().addresses.map((address) {
+                              return DropdownMenuItem<Address?>(
+                                value: address,
+                                child: Text(address.alias ?? '${address.street}, ${address.number}'),
+                              );
+                            }),
+                            const DropdownMenuItem<Address?>(
+                              value: null,
+                              child: Text('+ Cadastrar outro endereço...'),
+                            ),
+                          ],
+                          onChanged: (address) {
+                            setState(() {
+                              if (address == null) {
+                                _isCreatingNewAddress = true;
+                                _selectedSavedAddress = null;
+                              } else {
+                                _isCreatingNewAddress = false;
+                                _selectedSavedAddress = address;
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      if (!_isCreatingNewAddress && _selectedSavedAddress != null) ...[
+                        // Exibe um resumo do endereço selecionado
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.location_on, color: Colors.black54),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _selectedSavedAddress!.formattedAddress,
+                                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        // Campos manuais para novo endereço
+                        TextFormField(
+                          controller: _cepController,
+                          decoration: InputDecoration(
+                            labelText: 'CEP',
+                            hintText: '00000-000',
+                            prefixIcon: const Icon(Icons.location_on_outlined),
+                            suffixIcon: _isLoadingCep 
+                                ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black87)))
+                                : null,
+                          ),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          onChanged: _onCepChanged,
+                          validator: (value) {
+                            if (!_isCreatingNewAddress) return null;
+                            if (value == null || value.trim().isEmpty) return 'CEP é obrigatório';
+                            if (value.replaceAll(RegExp(r'\D'), '').length != 8) return 'CEP deve ter 8 dígitos';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _streetController,
+                          decoration: const InputDecoration(labelText: 'Rua / Logradouro'),
+                          validator: (value) {
+                            if (!_isCreatingNewAddress) return null;
+                            return value!.trim().isEmpty ? 'Rua é obrigatória' : null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _numberController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Número',
+                                  hintText: '123 ou S/N',
+                                ),
+                                validator: (value) {
+                                  if (!_isCreatingNewAddress) return null;
+                                  return value!.trim().isEmpty ? 'Número é obrigatório' : null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _complementController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Complemento',
+                                  hintText: 'Apto, Bloco, etc.',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _neighborhoodController,
+                          decoration: const InputDecoration(labelText: 'Bairro'),
+                          validator: (value) {
+                            if (!_isCreatingNewAddress) return null;
+                            return value!.trim().isEmpty ? 'Bairro é obrigatório' : null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: TextFormField(
+                                controller: _cityController,
+                                decoration: const InputDecoration(labelText: 'Cidade'),
+                                validator: (value) {
+                                  if (!_isCreatingNewAddress) return null;
+                                  return value!.trim().isEmpty ? 'Cidade é obrigatória' : null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 1,
+                              child: TextFormField(
+                                controller: _stateController,
+                                decoration: const InputDecoration(labelText: 'UF'),
+                                validator: (value) {
+                                  if (!_isCreatingNewAddress) return null;
+                                  return value!.trim().isEmpty ? 'UF obrigatória' : null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Checkbox para salvar em favoritos
+                        CheckboxListTile(
+                          title: const Text('Salvar este endereço nos meus favoritos', style: TextStyle(fontSize: 14)),
+                          value: _saveToFavorites,
+                          activeColor: Colors.black87,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              _saveToFavorites = value ?? false;
+                            });
+                          },
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                        ),
+                        
+                        if (_saveToFavorites) ...[
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _addressAliasController,
+                            decoration: const InputDecoration(
+                              labelText: 'Apelido do Endereço (ex: Casa, Trabalho)',
+                              hintText: 'Deixe em branco para salvar sem apelido',
+                            ),
+                          ),
+                        ],
+                      ],
                     ],
                   ),
                 ),
@@ -286,6 +614,14 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
     _descriptionController.dispose();
     _priceController.dispose();
     _contactController.dispose();
+    _cepController.dispose();
+    _streetController.dispose();
+    _neighborhoodController.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _numberController.dispose();
+    _complementController.dispose();
+    _addressAliasController.dispose();
     super.dispose();
   }
 }

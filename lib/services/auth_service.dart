@@ -91,4 +91,14 @@ class AuthService {
       throw Exception('Erro ao atualizar perfil: $e');
     }
   }
+
+  /// Deleta a conta do usuário logado chamando a RPC cadastrada no banco
+  Future<void> deleteAccount() async {
+    try {
+      await _supabase.rpc('delete_own_user');
+      await logout();
+    } catch (e) {
+      throw Exception('Erro ao excluir conta: $e');
+    }
+  }
 }

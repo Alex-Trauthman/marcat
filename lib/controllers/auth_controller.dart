@@ -3,7 +3,7 @@ import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 
 class AuthController extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  final AuthService _authService;
   
   bool _isLoading = false;
   String? _error;
@@ -13,7 +13,7 @@ class AuthController extends ChangeNotifier {
   String? get error => _error;
   UserProfile? get userProfile => _userProfile;
 
-  AuthController() {
+  AuthController({AuthService? authService}) : _authService = authService ?? AuthService() {
     _updateUserProfile();
   }
 
@@ -73,6 +73,24 @@ class AuthController extends ChangeNotifier {
     await _authService.logout();
     _userProfile = null;
     notifyListeners();
+  }
+
+  Future<bool> deleteAccount() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _authService.deleteAccount();
+      _userProfile = null;
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void refreshUser() {

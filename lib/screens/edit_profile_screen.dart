@@ -4,6 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/profile_controller.dart';
+import '../widgets/image_source_sheet.dart';
+import 'login_screen.dart';
+import 'addresses_screen.dart';
 
 /// Tela de Edição de Perfil: Refatorada para o padrão MVCS com Provider
 class EditProfileScreen extends StatefulWidget {
@@ -33,15 +36,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  /// Abre a seleção de fotos permitindo escolher Câmera ou Galeria
   Future<void> _pickAvatar() async {
-    final pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-      maxWidth: 512,
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ImageSourceSheet(
+        onSourceSelected: (source) async {
+          final pickedFile = await _picker.pickImage(
+            source: source,
+            imageQuality: 80,
+            maxWidth: 512,
+          );
+          if (pickedFile != null) {
+            setState(() => _newAvatarFile = File(pickedFile.path));
+          }
+        },
+      ),
     );
-    if (pickedFile != null) {
-      setState(() => _newAvatarFile = File(pickedFile.path));
-    }
   }
 
   Future<void> _saveProfile() async {
@@ -77,6 +89,68 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         );
       }
     }
+  }
+
+  /// Diálogo de confirmação para exclusão de conta
+  void _confirmDeleteAccount() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Excluir Conta', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          content: const Text(
+            'ATENÇÃO: Esta ação excluirá permanentemente o seu perfil, conta de login e todos os seus anúncios de forma irreversível. Deseja prosseguir?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.black54)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final authController = context.read<AuthController>();
+                
+                // Abre indicador de carregamento
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.black87)),
+                );
+
+                final success = await authController.deleteAccount();
+                
+                if (mounted) {
+                  Navigator.pop(context); // Fecha o indicador de carregamento
+                  if (success) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Sua conta foi excluída com sucesso.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Erro ao excluir conta: ${authController.error}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              child: const Text('Excluir Conta'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -147,7 +221,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: TextButton(
                     onPressed: _pickAvatar,
                     child: const Text(
-                      'Alterar foto',
+                      'Alterar foto (Câmera ou Galeria)',
                       style: TextStyle(color: Colors.black54, fontSize: 13),
                     ),
                   ),
@@ -217,6 +291,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddressesScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.location_on_outlined, color: Colors.black87),
+                  label: const Text(
+                    'Gerenciar Meus Endereços',
+                    style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.black87),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
                 const SizedBox(height: 24),
 
                 ElevatedButton(
@@ -237,6 +331,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           'Salvar alterações',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
+                ),
+
+                const SizedBox(height: 16),
+                const Divider(height: 32),
+                TextButton.icon(
+                  onPressed: isLoading ? null : _confirmDeleteAccount,
+                  icon: const Icon(Icons.delete_forever, color: Colors.red),
+                  label: const Text(
+                    'Excluir Minha Conta',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),

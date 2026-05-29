@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/item.dart';
 import '../widgets/carousel_widget.dart';
 import '../widgets/item_card.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/auth_controller.dart';
+import '../controllers/favorite_controller.dart';
+import '../controllers/cart_controller.dart';
+import '../models/item.dart';
 import 'details_screen.dart';
 import 'login_screen.dart';
 import 'create_item_screen.dart';
 import 'edit_profile_screen.dart';
+import 'my_items_screen.dart';
+import 'support_placeholder_screen.dart';
 
 /// Tela principal do aplicativo (Home), refatorada para o padrão MVCS com Provider
 class HomeScreen extends StatefulWidget {
@@ -51,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     // Se o usuário salvou alguma coisa, notifica o AuthController para atualizar a UI
     if (updated == true && mounted) {
-      context.read<AuthController>().updateUI();
+      context.read<AuthController>().refreshUser();
     }
   }
 
@@ -97,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           Text(
-                            authController.currentUser?.email ?? '',
+                            authController.userProfile?.email ?? '',
                             style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -119,7 +123,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ListTile(
                 leading: const Icon(Icons.storefront_outlined, color: Colors.black87),
                 title: const Text('Meus Anúncios'),
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const MyItemsScreen()));
+                },
               ),
               const Divider(height: 1),
               ListTile(
@@ -203,21 +210,22 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _selectedIndex,
         onTap: (index) async {
           if (index == 2) {
+            final homeController = context.read<HomeController>();
             final result = await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const CreateItemScreen()),
             );
             if (result == true && mounted) {
-              context.read<HomeController>().refreshItems();
+              homeController.refreshItems();
             }
           } else {
             _onItemTapped(index);
           }
         },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: 'Favoritos'),
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: 'Favoritos'),
+          const BottomNavigationBarItem(
             icon: CircleAvatar(
               backgroundColor: Colors.white,
               radius: 14,
@@ -225,15 +233,223 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             label: 'Anunciar',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_outlined), label: 'Carrinho'),
-          BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'Menu'),
+          BottomNavigationBarItem(
+            icon: context.watch<CartController>().cartItems.isNotEmpty
+                ? Badge(
+                    label: Text('${context.watch<CartController>().cartItems.length}'),
+                    child: const Icon(Icons.shopping_cart_outlined),
+                  )
+                : const Icon(Icons.shopping_cart_outlined),
+            label: 'Carrinho',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'Menu'),
         ],
       ),
       body: _buildBody(homeController),
     );
   }
 
+  Widget _buildPlaceholderTab(String title, IconData icon, String description) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: Colors.black38),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuView(BuildContext context) {
+    final authController = context.watch<AuthController>();
+    final userProfile = authController.userProfile;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Card de Perfil
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
+              ],
+            ),
+            child: Row(
+              children: [
+                _buildAvatarWidget(context, radius: 36),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        authController.userName ?? 'Usuário',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        userProfile?.email ?? '',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Opções do Menu Dashboard
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined, color: Colors.black87),
+                  title: const Text('Editar Perfil'),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: _goToEditProfile,
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.storefront_outlined, color: Colors.black87),
+                  title: const Text('Meus Anúncios'),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyItemsScreen()),
+                    );
+                  },
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.support_agent_outlined, color: Colors.black87),
+                  title: const Text('Suporte'),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SupportPlaceholderScreen()),
+                    );
+                  },
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.red),
+                  title: const Text('Sair da Conta', style: TextStyle(color: Colors.red)),
+                  onTap: () => _logout(context),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBody(HomeController controller) {
+    if (_selectedIndex == 1) {
+      final favoriteController = context.watch<FavoriteController>();
+      final favoriteItems = controller.items.where((item) => favoriteController.isFavorite(item.id)).toList();
+
+      if (favoriteItems.isEmpty) {
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.favorite_border, size: 64, color: Colors.black38),
+                SizedBox(height: 16),
+                Text(
+                  'Nenhum favorito cadastrado.',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Navegue pelos produtos e clique no coração para adicionar aos favoritos!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('Seus Favoritos'),
+            GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.72,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: favoriteItems.length,
+              itemBuilder: (context, index) {
+                return ItemCardWidget(
+                  item: favoriteItems[index],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DetailsScreen(item: favoriteItems[index]),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    }
+    if (_selectedIndex == 3) {
+      return _buildCartView(context);
+    }
+    if (_selectedIndex == 4) {
+      return _buildMenuView(context);
+    }
+
     if (controller.isLoading) {
       return const Center(child: CircularProgressIndicator(color: Colors.black87));
     }
@@ -332,6 +548,218 @@ class _HomeScreenState extends State<HomeScreen> {
         title,
         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
       ),
+    );
+  }
+
+  Widget _buildCartView(BuildContext context) {
+    final cartController = context.watch<CartController>();
+    final cartItems = cartController.cartItems;
+    final selectedIds = cartController.selectedCartItemIds;
+
+    if (cartController.isLoading && cartItems.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: Colors.black87));
+    }
+
+    if (cartItems.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.black38),
+              SizedBox(height: 16),
+              Text(
+                'Seu carrinho está vazio.',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Explore os produtos no marketplace e adicione-os ao carrinho!',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.black54),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: Colors.white,
+          child: Row(
+            children: [
+              Checkbox(
+                value: selectedIds.length == cartItems.length && cartItems.isNotEmpty,
+                activeColor: Colors.black87,
+                onChanged: (val) {
+                  cartController.toggleAllSelection(val ?? false);
+                },
+              ),
+              const Text(
+                'Selecionar Todos',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const Spacer(),
+              Text(
+                '${selectedIds.length} selecionado(s)',
+                style: const TextStyle(color: Colors.black54, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: cartItems.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final item = cartItems[index];
+              final isSelected = cartController.isItemSelected(item.id);
+              final isNetworkImage = item.imageUrl.startsWith('http');
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: isSelected,
+                      activeColor: Colors.black87,
+                      onChanged: (_) {
+                        cartController.toggleItemSelection(item.id);
+                      },
+                    ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: isNetworkImage
+                          ? Image.network(
+                              item.imageUrl,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const SizedBox(width: 80, height: 80, child: Icon(Icons.broken_image, size: 32)),
+                            )
+                          : Image.asset(
+                              item.imageUrl,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const SizedBox(width: 80, height: 80, child: Icon(Icons.broken_image, size: 32)),
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Condição: ${item.condition}',
+                            style: const TextStyle(fontSize: 12, color: Colors.black54),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            item.isFree ? 'Grátis' : 'R\$ ${item.price.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: item.isFree ? Colors.green[700] : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () {
+                        cartController.removeFromCart(item.id);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, -4)),
+            ],
+          ),
+          child: SafeArea(
+            child: Row(
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Total Selecionado', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'R\$ ${cartController.totalPrice.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: selectedIds.isEmpty
+                        ? null
+                        : () {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Em construção', style: TextStyle(fontWeight: FontWeight.bold)),
+                                content: const Text('Essa função ainda não foi desenvolvida.'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('OK', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black87,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text(
+                      'Finalizar Compra',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

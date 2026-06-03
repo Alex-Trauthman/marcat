@@ -400,7 +400,7 @@ class _CreateItemScreenState extends State<CreateItemScreen> {
 
                       if (context.watch<AddressController>().addresses.isNotEmpty) ...[
                         DropdownButtonFormField<Address?>(
-                          value: _isCreatingNewAddress ? null : _selectedSavedAddress,
+                          initialValue: _isCreatingNewAddress ? null : _selectedSavedAddress,
                           decoration: const InputDecoration(
                             labelText: 'Selecione o Endereço',
                             prefixIcon: Icon(Icons.map_outlined),

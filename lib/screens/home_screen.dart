@@ -6,7 +6,6 @@ import '../controllers/home_controller.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/favorite_controller.dart';
 import '../controllers/cart_controller.dart';
-import '../models/item.dart';
 import 'details_screen.dart';
 import 'login_screen.dart';
 import 'create_item_screen.dart';
@@ -246,31 +245,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _buildBody(homeController),
-    );
-  }
-
-  Widget _buildPlaceholderTab(String title, IconData icon, String description) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 64, color: Colors.black38),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Colors.black54),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -616,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: cartItems.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final item = cartItems[index];
               final isSelected = cartController.isItemSelected(item.id);

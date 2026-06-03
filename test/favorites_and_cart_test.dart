@@ -144,5 +144,25 @@ void main() {
       expect(cartController.isItemSelected('item-2'), isFalse);
       expect(cartController.totalPrice, equals(100.0));
     });
+
+    test('addToCart - fails if adding own item', () async {
+      final item = Item(
+        id: 'item-1',
+        title: 'Bike',
+        description: 'Desc',
+        price: 100.0,
+        imageUrl: 'img',
+        contactInfo: '123',
+        condition: 'Usado',
+        sellerId: 'user-123',
+      );
+
+      final success = await cartController.addToCart(item, currentUserId: 'user-123');
+
+      expect(success, isFalse);
+      expect(cartController.isInCart('item-1'), isFalse);
+      expect(cartController.error, contains('seu próprio item'));
+      verifyNever(() => mockCartService.addToCart(any()));
+    });
   });
 }

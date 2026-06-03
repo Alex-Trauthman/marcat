@@ -54,10 +54,17 @@ class CartController extends ChangeNotifier {
   }
 
   /// Adiciona um item ao carrinho
-  Future<bool> addToCart(Item item) async {
+  Future<bool> addToCart(Item item, {String? currentUserId}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
+
+    if (currentUserId != null && item.sellerId == currentUserId) {
+      _error = 'Você não pode adicionar seu próprio item ao carrinho.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
 
     try {
       await _cartService.addToCart(item.id);

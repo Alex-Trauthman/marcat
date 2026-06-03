@@ -111,6 +111,36 @@ class DetailsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if ((item.city != null && item.city!.isNotEmpty) || (item.cep != null && item.cep!.isNotEmpty)) ...[
+                    const SizedBox(height: 32),
+                    const Text(
+                      'Localização',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on, color: Colors.black54, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            [
+                              if (item.street != null && item.street!.isNotEmpty)
+                                '${item.street}${item.number != null && item.number!.isNotEmpty ? ', ${item.number}' : ''}',
+                              if (item.neighborhood != null && item.neighborhood!.isNotEmpty)
+                                item.neighborhood!,
+                              if (item.city != null && item.city!.isNotEmpty)
+                                '${item.city}${item.state != null && item.state!.isNotEmpty ? ' - ${item.state}' : ''}',
+                              if (item.cep != null && item.cep!.isNotEmpty)
+                                'CEP: ${item.cep}',
+                            ].join('\n'),
+                            style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.4, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -172,11 +202,17 @@ class DetailsScreen extends StatelessWidget {
                                 );
                               }
                             } else {
-                              await cartController.addToCart(item);
+                              final success = await cartController.addToCart(item, currentUserId: currentUser?.id);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Item adicionado ao carrinho!'), backgroundColor: Colors.green),
-                                );
+                                if (success) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Item adicionado ao carrinho!'), backgroundColor: Colors.green),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(cartController.error ?? 'Erro ao adicionar item ao carrinho.'), backgroundColor: Colors.red),
+                                  );
+                                }
                               }
                             }
                           },

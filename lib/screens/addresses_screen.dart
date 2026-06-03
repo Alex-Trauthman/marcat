@@ -229,7 +229,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
             SizedBox(height: 16),
             Text(
               'Nenhum endereço cadastrado.',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black54),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black54),
               textAlign: TextAlign.center,
             ),
           ],
@@ -241,7 +241,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: addresses.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         final address = addresses[index];
         return Container(

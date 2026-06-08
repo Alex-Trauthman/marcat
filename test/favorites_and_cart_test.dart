@@ -55,7 +55,8 @@ void main() {
     test('toggleFavorite - adds if not favorite, calls service', () async {
       when(() => mockFavoriteService.addFavorite(any())).thenAnswer((_) async {});
 
-      await favoriteController.toggleFavorite('item-3');
+      final testItem = Item(id: 'item-3', title: 'A', description: '', price: 0, imageUrl: '', contactInfo: '');
+      await favoriteController.toggleFavorite(testItem);
 
       expect(favoriteController.isFavorite('item-3'), isTrue);
       verify(() => mockFavoriteService.addFavorite('item-3')).called(1);

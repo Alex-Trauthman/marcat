@@ -29,19 +29,21 @@ class ItemCardWidget extends StatelessWidget {
                   Positioned.fill(
                     child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      child: isNetworkImage
-                          ? Image.network(
-                              item.imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                            )
-                          : Image.asset(
-                              item.imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                            ),
+                      child: item.imageUrl.isEmpty
+                          ? Container(color: Colors.grey[200], child: const Icon(Icons.image_not_supported, size: 50, color: Colors.grey))
+                          : isNetworkImage
+                              ? Image.network(
+                                  item.imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                )
+                              : Image.asset(
+                                  item.imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                ),
                     ),
                   ),
                   Positioned(
@@ -52,7 +54,7 @@ class ItemCardWidget extends StatelessWidget {
                         final isFav = favoriteController.isFavorite(item.id);
                         return GestureDetector(
                           onTap: () {
-                            favoriteController.toggleFavorite(item.id);
+                            favoriteController.toggleFavorite(item);
                           },
                           child: Container(
                             padding: const EdgeInsets.all(6),

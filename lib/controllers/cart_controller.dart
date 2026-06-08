@@ -137,4 +137,11 @@ class CartController extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  void clearLocal() {
+    _cartItems.clear();
+    _selectedCartItemIds.clear();
+    _error = null;
+    notifyListeners();
+  }
 }

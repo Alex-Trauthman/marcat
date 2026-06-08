@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/item.dart';
 import '../services/favorite_service.dart';
 
 class FavoriteController extends ChangeNotifier {
@@ -7,10 +8,12 @@ class FavoriteController extends ChangeNotifier {
   FavoriteController({FavoriteService? favoriteService})
       : _favoriteService = favoriteService ?? FavoriteService();
 
+  List<Item> _favoriteItems = [];
   Set<String> _favoriteItemIds = {};
   bool _isLoading = false;
   String? _error;
 
+  List<Item> get favoriteItems => _favoriteItems;
   Set<String> get favoriteItemIds => _favoriteItemIds;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -25,8 +28,8 @@ class FavoriteController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final ids = await _favoriteService.fetchFavoriteItemIds();
-      _favoriteItemIds = ids.toSet();
+      _favoriteItems = await _favoriteService.fetchFavoriteItems();
+      _favoriteItemIds = _favoriteItems.map((item) => item.id).toSet();
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -36,12 +39,14 @@ class FavoriteController extends ChangeNotifier {
   }
 
   /// Alterna o estado de favorito de um item
-  Future<void> toggleFavorite(String itemId) async {
+  Future<void> toggleFavorite(Item item) async {
     _error = null;
+    final itemId = item.id;
 
     if (isFavorite(itemId)) {
       // Remove localmente primeiro (Optimistic UI)
       _favoriteItemIds.remove(itemId);
+      _favoriteItems.removeWhere((i) => i.id == itemId);
       notifyListeners();
 
       try {
@@ -49,12 +54,14 @@ class FavoriteController extends ChangeNotifier {
       } catch (e) {
         // Rollback se falhar
         _favoriteItemIds.add(itemId);
+        _favoriteItems.add(item);
         _error = e.toString().replaceAll('Exception: ', '');
         notifyListeners();
       }
     } else {
       // Adiciona localmente primeiro (Optimistic UI)
       _favoriteItemIds.add(itemId);
+      _favoriteItems.add(item);
       notifyListeners();
 
       try {
@@ -62,9 +69,17 @@ class FavoriteController extends ChangeNotifier {
       } catch (e) {
         // Rollback se falhar
         _favoriteItemIds.remove(itemId);
+        _favoriteItems.removeWhere((i) => i.id == itemId);
         _error = e.toString().replaceAll('Exception: ', '');
         notifyListeners();
       }
     }
+  }
+
+  void clearLocal() {
+    _favoriteItems.clear();
+    _favoriteItemIds.clear();
+    _error = null;
+    notifyListeners();
   }
 }

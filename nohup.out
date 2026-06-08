@@ -1,0 +1,11 @@
+/usr/share/scrcpy/scrcpy-server: 1 file pushed, 0 skipped. 301.8 MB/s (732226 bytes in 0.002s)
+[server] INFO: Device: [samsung] samsung SM-A566E (Android 16)
+WARN: Could not set window icon: wayland: cannot set icon; required xdg_toplevel_icon_v1 protocol not supported
+WARN: Device disconnected
+scrcpy 4.0 <https://github.com/Genymobile/scrcpy>
+INFO: ADB device found:
+INFO:     -->   (usb)  RQGYA03DCDN                     device  SM_A566E
+INFO: Renderer: opengl
+INFO: OpenGL version: 4.6 (Compatibility Profile) Mesa 26.1.1-arch1.2
+INFO: Trilinear filtering enabled
+INFO: Texture: 1080x2340

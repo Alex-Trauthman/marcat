@@ -36,9 +36,13 @@ void main() {
       expect(favoriteController.favoriteItemIds, isEmpty);
     });
 
-    test('fetchFavorites - loads favorite IDs successfully', () async {
-      when(() => mockFavoriteService.fetchFavoriteItemIds())
-          .thenAnswer((_) async => ['item-1', 'item-2']);
+    test('fetchFavorites - loads favorite Items successfully', () async {
+      final mockItems = [
+        Item(id: 'item-1', title: 'Bike', description: '', price: 10, imageUrl: '', contactInfo: ''),
+        Item(id: 'item-2', title: 'Phone', description: '', price: 20, imageUrl: '', contactInfo: ''),
+      ];
+      when(() => mockFavoriteService.fetchFavoriteItems())
+          .thenAnswer((_) async => mockItems);
 
       await favoriteController.fetchFavorites();
 
@@ -59,12 +63,13 @@ void main() {
 
     test('toggleFavorite - removes if already favorite, calls service', () async {
       // Pré-popula
-      when(() => mockFavoriteService.fetchFavoriteItemIds()).thenAnswer((_) async => ['item-3']);
+      final testItem = Item(id: 'item-3', title: 'A', description: 'A', price: 0, imageUrl: '', contactInfo: '');
+      when(() => mockFavoriteService.fetchFavoriteItems()).thenAnswer((_) async => [testItem]);
       await favoriteController.fetchFavorites();
 
       when(() => mockFavoriteService.removeFavorite(any())).thenAnswer((_) async {});
 
-      await favoriteController.toggleFavorite('item-3');
+      await favoriteController.toggleFavorite(testItem);
 
       expect(favoriteController.isFavorite('item-3'), isFalse);
       verify(() => mockFavoriteService.removeFavorite('item-3')).called(1);

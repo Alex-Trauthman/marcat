@@ -30,6 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Inicia o carregamento dos itens ao abrir a tela
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeController>().fetchItems();
+      context.read<FavoriteController>().fetchFavorites();
+      context.read<CartController>().fetchCart();
     });
   }
 
@@ -38,6 +40,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _logout(BuildContext context) async {
+    context.read<FavoriteController>().clearLocal();
+    context.read<CartController>().clearLocal();
     await context.read<AuthController>().logout();
     if (context.mounted) {
       Navigator.pushReplacement(
@@ -355,7 +359,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBody(HomeController controller) {
     if (_selectedIndex == 1) {
       final favoriteController = context.watch<FavoriteController>();
-      final favoriteItems = controller.items.where((item) => favoriteController.isFavorite(item.id)).toList();
+      final favoriteItems = favoriteController.favoriteItems;
 
       if (favoriteItems.isEmpty) {
         return const Center(

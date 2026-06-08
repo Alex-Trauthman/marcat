@@ -18,8 +18,12 @@ class CartService {
       final list = response as List;
       final List<Item> items = [];
       for (final row in list) {
-        if (row['items'] != null) {
-          items.add(Item.fromJson(row['items'] as Map<String, dynamic>));
+        var itemData = row['items'];
+        if (itemData is List && itemData.isNotEmpty) {
+          itemData = itemData.first;
+        }
+        if (itemData is Map<String, dynamic>) {
+          items.add(Item.fromJson(itemData));
         }
       }
       return items;

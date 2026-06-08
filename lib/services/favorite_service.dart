@@ -1,20 +1,32 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/item.dart';
 
 class FavoriteService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// Retorna os IDs dos itens favoritados pelo usuário logado
-  Future<List<String>> fetchFavoriteItemIds() async {
+  /// Retorna os itens favoritados pelo usuário logado
+  Future<List<Item>> fetchFavoriteItems() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return [];
 
     try {
       final response = await _supabase
           .from('favorites')
-          .select('item_id')
+          .select('*, items(*)')
           .eq('user_id', user.id);
 
-      return (response as List).map((row) => row['item_id'] as String).toList();
+      final list = response as List;
+      final List<Item> items = [];
+      for (final row in list) {
+        var itemData = row['items'];
+        if (itemData is List && itemData.isNotEmpty) {
+          itemData = itemData.first;
+        }
+        if (itemData is Map<String, dynamic>) {
+          items.add(Item.fromJson(itemData));
+        }
+      }
+      return items;
     } catch (e) {
       throw Exception('Erro ao buscar favoritos: $e');
     }

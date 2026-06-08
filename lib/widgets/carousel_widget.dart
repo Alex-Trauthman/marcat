@@ -21,41 +21,61 @@ class CarouselWidget extends StatelessWidget {
           final item = items[index];
           final bool isNetworkImage = item.imageUrl.startsWith('http');
 
+          final hasImage = item.imageUrl.isNotEmpty;
+
           return GestureDetector(
             onTap: () => onItemTap(item),
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                image: DecorationImage(
-                  image: (isNetworkImage 
-                    ? NetworkImage(item.imageUrl) 
-                    : AssetImage(item.imageUrl)) as ImageProvider,
-                  fit: BoxFit.cover,
-                ),
+                color: Colors.grey[300],
                 boxShadow: const [
                   BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3))
                 ],
               ),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: const [0.4, 1.0],
-                  ),
-                ),
-                padding: const EdgeInsets.all(16),
-                alignment: Alignment.bottomLeft,
-                child: Text(
-                  item.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (hasImage)
+                      isNetworkImage
+                          ? Image.network(
+                              item.imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Center(child: Icon(Icons.broken_image, size: 50, color: Colors.grey)),
+                            )
+                          : Image.asset(
+                              item.imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Center(child: Icon(Icons.broken_image, size: 50, color: Colors.grey)),
+                            )
+                    else
+                      const Center(child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey)),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: const [0.4, 1.0],
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      alignment: Alignment.bottomLeft,
+                      child: Text(
+                        item.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

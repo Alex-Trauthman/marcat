@@ -29,7 +29,7 @@ class DetailsScreen extends StatelessWidget {
                   isFav ? Icons.favorite : Icons.favorite_border,
                   color: isFav ? Colors.red : Colors.black87,
                 ),
-                onPressed: () => favoriteController.toggleFavorite(item.id),
+                onPressed: () => favoriteController.toggleFavorite(item),
               );
             },
           ),
@@ -42,23 +42,25 @@ class DetailsScreen extends StatelessWidget {
             // Animação Hero: cria uma transição suave da imagem do card direto para esta tela
             Hero(
               tag: 'image_${item.id}',
-              child: item.imageUrl.startsWith('http')
-                  ? Image.network(
-                      item.imageUrl,
-                      width: double.infinity,
-                      height: 320,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const SizedBox(height: 320, child: Center(child: Icon(Icons.broken_image, size: 64))),
-                    )
-                  : Image.asset(
-                      item.imageUrl,
-                      width: double.infinity,
-                      height: 320,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const SizedBox(height: 320, child: Center(child: Icon(Icons.broken_image, size: 64))),
-                    ),
+              child: item.imageUrl.isEmpty
+                  ? Container(width: double.infinity, height: 320, color: Colors.grey[200], child: const Center(child: Icon(Icons.image_not_supported, size: 64, color: Colors.grey)))
+                  : item.imageUrl.startsWith('http')
+                      ? Image.network(
+                          item.imageUrl,
+                          width: double.infinity,
+                          height: 320,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox(height: 320, child: Center(child: Icon(Icons.broken_image, size: 64))),
+                        )
+                      : Image.asset(
+                          item.imageUrl,
+                          width: double.infinity,
+                          height: 320,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox(height: 320, child: Center(child: Icon(Icons.broken_image, size: 64))),
+                        ),
             ),
             Padding(
               padding: const EdgeInsets.all(24.0),
